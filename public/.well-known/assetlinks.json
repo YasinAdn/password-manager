@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.vault_yasinadnan.twa",
+      "sha256_cert_fingerprints": [
+        "46:6A:A5:BF:E7:8B:AD:8F:20:C7:B3:F2:2D:9B:BA:32:64:C8:F0:D5:68:EF:3A:5D:50:CE:C6:D3:EF:6E:91:77"
+      ]
+    }
+  }
+]

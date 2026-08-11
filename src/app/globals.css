@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0f3d34;
+  --foreground: #f7f6f1;
+  --panel: #134e43;
+  --border: rgba(230, 240, 233, 0.14);
+  --accent: #c8a96a;
+  --danger: #c0503f;
+  --muted: #a9c2b8;
+  --velvet-a: #0f3d34;
+  --velvet-b: #134e43;
+  --velvet-glow-1: rgba(230, 240, 233, 0.22);
+  --velvet-glow-2: rgba(230, 240, 233, 0.12);
+  --velvet-shadow: rgba(0, 0, 0, 0.38);
+  --velvet-shadow-soft: rgba(0, 0, 0, 0.2);
+  --velvet-fold-tint: rgba(200, 169, 106, 0.07);
+}
+
+:root[data-theme="light"] {
+  --background: #f7f6f1;
+  --foreground: #0f3d34;
+  --panel: #e6f0e9;
+  --border: #d7e3da;
+  --accent: #c8a96a;
+  --danger: #b3432f;
+  --muted: #5f7a70;
+  --velvet-a: #dce9e2;
+  --velvet-b: #f7f6f1;
+  --velvet-glow-1: rgba(255, 255, 255, 0.85);
+  --velvet-glow-2: rgba(255, 255, 255, 0.5);
+  --velvet-shadow: rgba(15, 61, 52, 0.14);
+  --velvet-shadow-soft: rgba(15, 61, 52, 0.07);
+  --velvet-fold-tint: rgba(200, 169, 106, 0.12);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-panel: var(--panel);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
