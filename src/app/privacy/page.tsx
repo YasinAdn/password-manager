@@ -2,7 +2,7 @@ import Link from "next/link";
 import { linkClass } from "@/lib/ui";
 
 export const metadata = {
-  title: "Privacy Policy — Vault",
+  title: "Privacy Policy",
 };
 
 const CONTACT_EMAIL = "yasin.adnan@mynexsystems.com";
