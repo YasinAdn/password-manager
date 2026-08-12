@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { deriveKey } from "@/lib/crypto";
@@ -23,6 +23,14 @@ export default function LockScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setEmail(data.user?.email ?? null);
+    });
+  }, []);
 
   async function handleUnlock(e: FormEvent) {
     e.preventDefault();
@@ -68,6 +76,9 @@ export default function LockScreen() {
     <div className="flex-1 flex items-center justify-center px-4 py-16">
       <div className="w-full max-w-sm rounded-xl border border-border bg-panel p-7 shadow-2xl">
         <h1 className="text-lg font-semibold text-foreground">Vault locked</h1>
+        {email ? (
+          <p className="mt-1 text-sm text-accent">{email}</p>
+        ) : null}
         <p className="mt-1 text-sm text-muted">
           Enter your master password to unlock it.
         </p>
