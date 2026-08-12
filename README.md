@@ -95,3 +95,5 @@ you're already signed in).
   global `allow-scripts` npm restriction — none of this project's
   dependencies (Next.js, React, Tailwind, Supabase clients, `hash-wasm`) need
   install-time native builds, so this is safe here.
+
+<!-- verifying vercel auto-deploy on push -->
