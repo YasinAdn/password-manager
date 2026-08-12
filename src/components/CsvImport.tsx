@@ -3,7 +3,7 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import Papa from "papaparse";
 import type { VaultItemData } from "@/lib/crypto";
-import { secondaryButtonClass } from "@/lib/ui";
+import { heroActionCardClass, secondaryButtonClass } from "@/lib/ui";
 
 // Common header names across password-manager CSV exports (Chrome, Bitwarden,
 // LastPass, generic). Matching is case-insensitive against these aliases.
@@ -60,10 +60,14 @@ type Status =
 // reaches Supabase, same as adding one entry by hand.
 export default function CsvImport({
   onImport,
+  variant = "default",
+  className,
 }: {
   onImport: (
     items: VaultItemData[],
   ) => Promise<{ succeeded: number; failed: number }>;
+  variant?: "default" | "hero";
+  className?: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>({ state: "idle" });
@@ -119,15 +123,65 @@ export default function CsvImport({
     }
   }
 
+  const fileInput = (
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept=".csv,text/csv"
+      className="hidden"
+      onChange={handleFile}
+    />
+  );
+
+  if (variant === "hero") {
+    return (
+      <div className={`flex flex-col items-center gap-2 ${className ?? ""}`}>
+        {fileInput}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={status.state === "importing"}
+          title="Parsed entirely in your browser -- never uploaded raw"
+          className={heroActionCardClass}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-6 w-6 text-accent transition-transform duration-200 group-hover:scale-110"
+          >
+            <path d="M12 3v12" />
+            <path d="m7 8 5-5 5 5" />
+            <path d="M5 21h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2h-1" />
+            <path d="M5 21a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h1" />
+          </svg>
+          <span className="text-sm font-semibold text-foreground">
+            {status.state === "importing" ? "Importing…" : "Import CSV"}
+          </span>
+          <span className="text-xs text-muted">
+            From Chrome, Bitwarden, LastPass, or similar
+          </span>
+        </button>
+        {status.state === "done" ? (
+          <span className="text-xs text-muted">
+            Imported {status.succeeded}
+            {status.failed ? `, ${status.failed} failed` : ""}
+          </span>
+        ) : null}
+        {status.state === "error" ? (
+          <span className="text-xs text-danger">{status.message}</span>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="inline-flex items-center gap-2">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".csv,text/csv"
-        className="hidden"
-        onChange={handleFile}
-      />
+      {fileInput}
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}

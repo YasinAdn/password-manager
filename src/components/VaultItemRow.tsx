@@ -8,10 +8,12 @@ export default function VaultItemRow({
   item,
   onEdit,
   onDelete,
+  index = 0,
 }: {
   item: VaultItem;
   onEdit: () => void;
   onDelete: () => Promise<void>;
+  index?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -28,7 +30,10 @@ export default function VaultItemRow({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-panel">
+    <div
+      className="animate-fade-in-up rounded-lg border border-border bg-panel transition-shadow hover:shadow-md"
+      style={{ animationDelay: `${Math.min(index, 10) * 35}ms` }}
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -42,10 +47,12 @@ export default function VaultItemRow({
             {item.data.username || item.data.email || "—"}
           </div>
         </div>
-        <span className="text-muted">{open ? "−" : "+"}</span>
+        <span className="text-muted transition-transform duration-200">
+          {open ? "−" : "+"}
+        </span>
       </button>
       {open ? (
-        <div className="space-y-3 border-t border-border px-4 py-4">
+        <div className="animate-fade-in-up space-y-3 border-t border-border px-4 py-4">
           {item.data.url ? (
             <Field label="URL" value={item.data.url}>
               <a

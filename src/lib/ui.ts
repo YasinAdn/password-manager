@@ -14,3 +14,6 @@ export const errorBoxClass =
   "mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger";
 
 export const linkClass = "text-accent hover:underline";
+
+export const heroActionCardClass =
+  "group flex flex-col items-center gap-2 rounded-xl border border-border bg-panel px-6 py-8 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-lg active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50";
