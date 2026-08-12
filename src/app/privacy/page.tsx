@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { linkClass } from "@/lib/ui";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata = {
   title: "Privacy Policy",
   alternates: {
-    canonical: "https://passten.vercel.app/privacy",
+    canonical: `${SITE_URL}/privacy`,
   },
 };
 

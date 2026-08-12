@@ -1,10 +1,17 @@
-# Vault
+import { SITE_URL } from "@/lib/site";
+
+// A structured, plain-text summary for AI agents and LLM-based crawlers,
+// per the emerging llms.txt convention (https://llmstxt.org). Generated
+// dynamically (rather than a static public/ file) so every link in it
+// follows SITE_URL -- change the domain once, this updates with it.
+export async function GET() {
+  const body = `# Vault
 
 > Vault is a free, open-source, self-hosted password manager with client-side AES-256-GCM encryption. The master password never leaves the user's device; the server only ever stores encrypted ciphertext, never plaintext data or the master password itself.
 
 ## Key facts
 
-- Encryption: the master password plus a random per-account salt are run through Argon2id (client-side, via `hash-wasm`, no network call) to derive an AES-256-GCM key. Every vault item (title, URL, email, username, password) is encrypted with that key before it is ever sent to the server.
+- Encryption: the master password plus a random per-account salt are run through Argon2id (client-side, via \`hash-wasm\`, no network call) to derive an AES-256-GCM key. Every vault item (title, URL, email, username, password) is encrypted with that key before it is ever sent to the server.
 - The backend (Supabase) never sees the master password or plaintext vault data — only ciphertext and a non-secret salt value.
 - No advertising, no analytics, no third-party trackers. Data is never sold or shared.
 - Forgotten master password: account access can be recovered via a one-time email code, but existing vault items cannot be decrypted afterward (there is no server-side key escrow) and are cleared as part of the reset so the vault becomes usable again.
@@ -14,9 +21,9 @@
 
 ## Links
 
-- [Live app](https://passten.vercel.app)
-- [Frequently asked questions](https://passten.vercel.app/#frequently-asked-questions)
-- [Privacy policy](https://passten.vercel.app/privacy)
+- [Live app](${SITE_URL})
+- [Frequently asked questions](${SITE_URL}/#frequently-asked-questions)
+- [Privacy policy](${SITE_URL}/privacy)
 - [Web app source (Next.js + Supabase)](https://github.com/YasinAdn/password-manager)
 - [Android app source (TWA wrapper)](https://github.com/YasinAdn/password-manager-android)
 - [Android APK download](https://github.com/YasinAdn/password-manager-android/releases/latest)
@@ -24,3 +31,9 @@
 ## Contact
 
 - Commercial licensing inquiries: yasin.adnan@mynexsystems.com
+`;
+
+  return new Response(body, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}

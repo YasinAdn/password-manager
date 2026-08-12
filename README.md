@@ -105,6 +105,15 @@ you're already signed in).
   search engines (Bing, Yandex) to recrawl sooner. Google doesn't use this
   protocol — it discovers pages by crawling links (e.g. from the GitHub
   repo) and the sitemap.
+- Domain-agnostic by design: every canonical URL, sitemap entry, JSON-LD
+  reference, and `llms.txt` link derives from `src/lib/site.ts`, which
+  resolves to Vercel's own production domain automatically (see the file
+  for the exact resolution order). Renaming the Vercel project or moving
+  to a custom domain needs no code change here. The Android app is the
+  one thing that *does* need a manual step when the domain changes — see
+  the [android repo](https://github.com/YasinAdn/password-manager-android)'s
+  README for why (it's an Android platform requirement, not a limitation
+  of this code) and how to repoint it.
 
 ## License
 

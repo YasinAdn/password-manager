@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import LandingPage from "@/components/LandingPage";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   alternates: {
-    canonical: "https://passten.vercel.app",
+    canonical: SITE_URL,
   },
 };
 

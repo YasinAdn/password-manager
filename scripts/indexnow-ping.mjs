@@ -7,8 +7,13 @@
 // in it. Run after any content change to the public pages:
 //
 //   node scripts/indexnow-ping.mjs
+//
+// If the site's domain has changed, override it for this run instead of
+// editing this file:
+//
+//   SITE_URL="https://new-domain.com" node scripts/indexnow-ping.mjs
 
-const SITE_URL = "https://passten.vercel.app";
+const SITE_URL = process.env.SITE_URL || "https://passten.vercel.app";
 const KEY = "a38fa356fe6bd9762b8e18ef93bac539";
 const KEY_LOCATION = `${SITE_URL}/${KEY}.txt`;
 

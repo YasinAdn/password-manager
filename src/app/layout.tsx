@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { VaultProvider } from "@/lib/vault-context";
 import VelvetBackground from "@/components/VelvetBackground";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,7 +16,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_URL = "https://passten.vercel.app";
 const DESCRIPTION =
   "Vault is a free, open-source, self-hosted password manager with client-side AES-256-GCM encryption. Your master password never leaves your device.";
 

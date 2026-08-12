@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { linkClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
+import { SITE_URL } from "@/lib/site";
 
 const FAQS = [
   {
@@ -44,7 +45,7 @@ export default function LandingPage() {
           price: "0",
           priceCurrency: "USD",
         },
-        url: "https://passten.vercel.app",
+        url: SITE_URL,
       },
       {
         "@type": "FAQPage",
