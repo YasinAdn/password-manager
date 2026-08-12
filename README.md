@@ -96,4 +96,12 @@ you're already signed in).
   dependencies (Next.js, React, Tailwind, Supabase clients, `hash-wasm`) need
   install-time native builds, so this is safe here.
 
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE). Free to use, fork, modify, and
+self-host for any noncommercial purpose — including deploying your own
+private vault, per the note above. Commercial use (selling it, offering it
+as a paid hosted service, bundling it into a paid product) requires a
+separate agreement — contact yasin.adnan@mynexsystems.com.
+
 <!-- verifying vercel auto-deploy on push -->
