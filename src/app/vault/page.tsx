@@ -87,7 +87,7 @@ export default function VaultPage() {
   return (
     <main className="flex-1 px-4 py-8">
       <div className="mx-auto max-w-2xl">
-        <header className="animate-fade-in-up mb-6 flex items-center justify-between">
+        <header className="animate-fade-in-up relative z-20 mb-6 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_8px_var(--accent)]" />

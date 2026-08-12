@@ -48,7 +48,7 @@ export default function MobileHeaderMenu({
       </button>
 
       {open ? (
-        <div className="animate-fade-in-up absolute right-0 top-11 z-10 w-44 overflow-hidden rounded-lg border border-border bg-panel shadow-lg">
+        <div className="animate-fade-in-up absolute right-0 top-11 z-10 w-44 overflow-hidden rounded-lg border border-border/60 bg-panel/70 shadow-lg backdrop-blur-md">
           <Link
             href="/vault/settings"
             onClick={() => setOpen(false)}
