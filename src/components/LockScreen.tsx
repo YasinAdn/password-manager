@@ -77,7 +77,7 @@ export default function LockScreen() {
       <div className="w-full max-w-sm rounded-xl border border-border bg-panel p-7 shadow-2xl">
         <h1 className="text-lg font-semibold text-foreground">Vault locked</h1>
         {email ? (
-          <p className="mt-1 text-sm text-accent">{email}</p>
+          <p className="mt-1 text-sm text-muted">{email}</p>
         ) : null}
         <p className="mt-1 text-sm text-muted">
           Enter your master password to unlock it.
