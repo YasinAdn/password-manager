@@ -3,6 +3,9 @@ import { linkClass } from "@/lib/ui";
 
 export const metadata = {
   title: "Privacy Policy",
+  alternates: {
+    canonical: "https://passten.vercel.app/privacy",
+  },
 };
 
 const CONTACT_EMAIL = "yasin.adnan@mynexsystems.com";

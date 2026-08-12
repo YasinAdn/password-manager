@@ -89,12 +89,22 @@ you're already signed in).
   master password.
 - `supabase/schema.sql` — run once in Supabase's SQL editor.
 
+## Related
+
+- [password-manager-android](https://github.com/YasinAdn/password-manager-android)
+  — an installable Android app (Trusted Web Activity) wrapping this web app.
+
 ## Notes
 
 - Installed with `npm install --ignore-scripts` because of this machine's
   global `allow-scripts` npm restriction — none of this project's
   dependencies (Next.js, React, Tailwind, Supabase clients, `hash-wasm`) need
   install-time native builds, so this is safe here.
+- After a meaningful content change to the public pages (`/`, `/privacy`),
+  run `node scripts/indexnow-ping.mjs` to nudge IndexNow-participating
+  search engines (Bing, Yandex) to recrawl sooner. Google doesn't use this
+  protocol — it discovers pages by crawling links (e.g. from the GitHub
+  repo) and the sitemap.
 
 ## License
 
