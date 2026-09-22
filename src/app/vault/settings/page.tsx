@@ -5,6 +5,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { deriveKey } from "@/lib/crypto";
 import { useVault } from "@/lib/vault-context";
+import { TotpSetupCard } from "@/components/TotpSetupCard";
+import { HoldToConfirmButton } from "@/components/HoldToConfirmButton";
+import { ShieldCheck, ShieldAlert, KeyRound, Smartphone, Trash2 } from "lucide-react";
 import {
   errorBoxClass,
   inputClass,
@@ -16,12 +19,8 @@ import {
 
 const MIN_PASSWORD_LENGTH = 10;
 
-// Changing the master password (as opposed to resetting a forgotten one)
-// keeps the same kdf_salt -- only the password text changes -- and
-// re-encrypts every vault item with the new key before touching the auth
-// password, so nothing is lost.
 export default function VaultSettingsPage() {
-  const { isUnlocked, reencryptAll } = useVault();
+  const { isUnlocked, reencryptAll, clearAllItems, totpConfig, enableTotp2FA, disableTotp2FA } = useVault();
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -29,6 +28,13 @@ export default function VaultSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Clear All Saved Passwords state
+  const [clearError, setClearError] = useState<string | null>(null);
+  const [clearSuccess, setClearSuccess] = useState(false);
+
+  // TOTP Setup toggle
+  const [showTotpSetup, setShowTotpSetup] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -107,19 +113,99 @@ export default function VaultSettingsPage() {
     );
   }
 
+  const isTotpActive = totpConfig?.enabled === true;
+
   return (
     <main className="flex-1 px-4 py-8">
-      <div className="mx-auto max-w-sm">
+      <div className="mx-auto max-w-2xl space-y-6">
         <Link
           href="/vault"
-          className={`${secondaryButtonClass} mb-6 inline-block w-auto px-3 py-1.5 text-xs`}
+          className={`${secondaryButtonClass} inline-block w-auto px-3 py-1.5 text-xs`}
         >
           ← Back to vault
         </Link>
-        <div className="rounded-xl border border-border bg-panel p-7">
-          <h1 className="text-lg font-semibold text-foreground">
+
+        {/* ── Two-Factor Authentication (TOTP) Card ── */}
+        <div className="rounded-xl border border-border bg-panel p-7 shadow-xl space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-background border border-border text-accent">
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Two-Factor Authentication (TOTP 2FA)
+                </h2>
+                <p className="text-xs text-muted">
+                  Pair with Google Authenticator or Authy for 2-step vault unlock
+                </p>
+              </div>
+            </div>
+
+            <div className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+              isTotpActive
+                ? "bg-accent/20 border-accent/40 text-accent"
+                : "bg-destructive/10 border-destructive/30 text-destructive"
+            }`}>
+              {isTotpActive ? "2FA Enabled 🟢" : "2FA Disabled 🔴"}
+            </div>
+          </div>
+
+          {isTotpActive && !showTotpSetup && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-background border border-border text-xs text-muted space-y-1">
+                <p className="font-semibold text-foreground">Active Configuration:</p>
+                <p>Account: <strong className="text-foreground">{totpConfig?.accountName}</strong></p>
+                <p>Issuer: <strong className="text-foreground">{totpConfig?.issuer}</strong></p>
+                <p>Status: <span className="text-accent font-semibold">Protected with 2-step verification</span></p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowTotpSetup(true)}
+                  className={`${secondaryButtonClass} w-auto text-xs px-3 py-2`}
+                >
+                  View QR Code / Secret
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm("Are you sure you want to disable TOTP 2FA?")) {
+                      disableTotp2FA();
+                      setShowTotpSetup(false);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-medium border border-destructive/30 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Disable TOTP 2FA</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {(!isTotpActive || showTotpSetup) && (
+            <div className="space-y-4">
+              <TotpSetupCard
+                initialAccount={totpConfig?.accountName ?? "user@mynexvault.app"}
+                initialIssuer={totpConfig?.issuer ?? "MynexVault"}
+                initialSecret={totpConfig?.secret}
+                onSaveConfig={(secret, account, issuer) => {
+                  enableTotp2FA(secret, account, issuer);
+                  setShowTotpSetup(false);
+                }}
+                onCancel={isTotpActive ? () => setShowTotpSetup(false) : undefined}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Change Master Password Card */}
+        <div className="rounded-xl border border-border bg-panel p-7 shadow-xl">
+          <h2 className="text-lg font-semibold text-foreground">
             Change master password
-          </h1>
+          </h2>
           <p className="mt-1 text-sm text-muted">
             Your saved passwords are re-encrypted with the new one — nothing
             is lost.
@@ -183,6 +269,51 @@ export default function VaultSettingsPage() {
               {submitting ? "Updating…" : "Update master password"}
             </button>
           </form>
+        </div>
+
+        {/* Clear List (Wipe Saved Passwords) Card */}
+        <div className="rounded-xl border border-red-500/30 bg-panel p-7 shadow-xl space-y-4">
+          <div className="flex items-center gap-3 pb-3 border-b border-border">
+            <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400">
+              <Trash2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Clear Saved Passwords
+              </h2>
+              <p className="text-xs text-muted">
+                Permanently delete all credentials and items stored in your vault.
+              </p>
+            </div>
+          </div>
+
+          {clearError ? <p className={errorBoxClass}>{clearError}</p> : null}
+
+          {clearSuccess ? (
+            <p className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-accent">
+              All saved passwords have been cleared from your vault.
+            </p>
+          ) : null}
+
+          <div className="pt-2">
+            <HoldToConfirmButton
+              holdDurationMs={5000}
+              idleLabel="Hold for 5 seconds to Clear All Saved Passwords"
+              holdingLabel="Keep holding to clear all passwords..."
+              confirmedLabel="All Saved Passwords Cleared!"
+              onConfirm={async () => {
+                setClearError(null);
+                setClearSuccess(false);
+                try {
+                  await clearAllItems();
+                  setClearSuccess(true);
+                } catch (err: unknown) {
+                  const message = err instanceof Error ? err.message : "Failed to clear saved passwords.";
+                  setClearError(message);
+                }
+              }}
+            />
+          </div>
         </div>
       </div>
     </main>

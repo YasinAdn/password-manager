@@ -27,13 +27,15 @@ export default function VaultPage() {
   const [editing, setEditing] = useState<VaultItem | "new" | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    const checkUser = async () => {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
       setHasSession(!!data.user);
       setEmail(data.user?.email ?? null);
       setCheckingSession(false);
       if (!data.user) router.push("/login");
-    });
+    };
+    checkUser();
   }, [router]);
 
   async function handleSignOut() {
