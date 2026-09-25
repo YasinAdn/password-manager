@@ -7,7 +7,7 @@ import { deriveKey, generateSaltBase64 } from "@/lib/crypto";
 import { useVault } from "@/lib/vault-context";
 import { isValidEmail } from "@/lib/validation";
 import AuthCard from "@/components/AuthCard";
-import { SandboxBanner } from "@/components/SandboxBanner";
+import { Totp2faChallenge } from "@/components/Totp2faChallenge";
 import {
   errorBoxClass,
   inputClass,
@@ -15,22 +15,28 @@ import {
   linkClass,
   primaryButtonClass,
 } from "@/lib/ui";
-import { Zap } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { unlockMaster } = useVault();
+  const { unlockMaster, verifyTotp, lock } = useVault();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // In-line TOTP 2FA step if enabled on the user's account
+  const [totpChallenge, setTotpChallenge] = useState<{
+    userId: string;
+    secret: string;
+  } | null>(null);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (!isValidEmail(email)) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!isValidEmail(cleanEmail)) {
       setError("Enter a valid email address.");
       return;
     }
@@ -39,17 +45,19 @@ export default function LoginPage() {
     try {
       const supabase = createClient();
       const { data, error: signInError } =
-        await supabase.auth.signInWithPassword({ email, password });
+        await supabase.auth.signInWithPassword({ email: cleanEmail, password });
       if (signInError || !data.user) {
         setError(signInError?.message ?? "Could not sign in.");
         return;
       }
 
+      // Fetch user profile salt
       const { data: fetchedProfile, error: profileError } = await supabase
         .from("profiles")
-        .select("kdf_salt")
+        .select("kdf_salt, totp_enabled, totp_secret")
         .eq("id", data.user.id)
         .maybeSingle();
+
       if (profileError) {
         setError(profileError.message);
         return;
@@ -57,6 +65,7 @@ export default function LoginPage() {
 
       let profile = fetchedProfile;
       if (!profile) {
+        // Only if profile genuinely didn't exist (initial bootstrap)
         const kdfSalt = generateSaltBase64();
         const { error: insertError } = await supabase
           .from("profiles")
@@ -74,21 +83,44 @@ export default function LoginPage() {
         setError(result.error ?? "Could not unlock your vault.");
         return;
       }
+
+      // If user has TOTP 2FA enabled, challenge them right here
+      if (result.totpRequired && result.totpSecret) {
+        setTotpChallenge({
+          userId: data.user.id,
+          secret: result.totpSecret,
+        });
+        return;
+      }
+
       router.push("/vault");
     } finally {
       setSubmitting(false);
     }
   }
 
-  const handleAutoFillDemo = (demoEmail: string, demoPass: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-  };
+  // 2-Step verification screen
+  if (totpChallenge) {
+    return (
+      <div className="flex-1 flex flex-col justify-center">
+        <Totp2faChallenge
+          userId={totpChallenge.userId}
+          secret={totpChallenge.secret}
+          onSuccess={() => {
+            verifyTotp();
+            router.push("/vault");
+          }}
+          onCancel={() => {
+            setTotpChallenge(null);
+            lock();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex-1 flex flex-col justify-between">
-      <SandboxBanner onAutoFillDemo={handleAutoFillDemo} />
-
+    <div className="flex-1 flex flex-col justify-center">
       <div className="flex-1 flex items-center justify-center p-4 py-12">
         <AuthCard title="Unlock your vault" subtitle="Log in with your master password.">
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -114,7 +146,7 @@ export default function LoginPage() {
               <input
                 id="password"
                 type="password"
-                autoComplete="off"
+                autoComplete="current-password"
                 className={inputClass}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -128,15 +160,6 @@ export default function LoginPage() {
               disabled={submitting}
             >
               {submitting ? "Unlocking…" : "Log in"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleAutoFillDemo("demo@mynexvault.app", "password123")}
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-colors"
-            >
-              <Zap className="w-4 h-4 text-amber-400" />
-              <span>Fill Demo Credentials (demo@mynexvault.app)</span>
             </button>
           </form>
           <div className="mt-5 flex items-center justify-between text-sm text-muted">

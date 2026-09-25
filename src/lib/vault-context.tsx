@@ -51,8 +51,8 @@ interface VaultContextValue {
   clearAllItems: () => Promise<void>;
   reencryptAll: (newKey: CryptoKey) => Promise<void>;
 
-  enableTotp2FA: (secret: string, accountName: string, issuer: string) => void;
-  disableTotp2FA: () => void;
+  enableTotp2FA: (secret: string, accountName: string, issuer: string) => Promise<void>;
+  disableTotp2FA: () => Promise<void>;
 }
 
 const VaultContext = createContext<VaultContextValue | null>(null);
@@ -80,12 +80,43 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         if (!user) return { ok: false, error: "Not signed in." };
 
         setCurrentUserId(user.id);
-        const config = getTotpConfig(user.id);
-        setTotpConfigState(config);
 
+        // Fetch user profile from database to get persistent TOTP configuration (Zero Trust)
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("totp_enabled, totp_secret, totp_account, totp_issuer")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        let activeTotpConfig: TotpProfileConfig | null = null;
+        if (profile?.totp_enabled && profile.totp_secret) {
+          activeTotpConfig = {
+            enabled: true,
+            secret: profile.totp_secret,
+            accountName: profile.totp_account || user.email || "user@mynexvault.app",
+            issuer: profile.totp_issuer || "MynexVault",
+            createdAt: new Date().toISOString(),
+            lastUsedTimestep: null,
+            failedAttempts: 0,
+            failedWindowStart: null,
+            lockedUntil: null,
+          };
+          saveTotpConfig(user.id, activeTotpConfig);
+        } else {
+          // Check local storage cache
+          const localConfig = getTotpConfig(user.id);
+          if (localConfig?.enabled) {
+            activeTotpConfig = localConfig;
+          }
+        }
+        setTotpConfigState(activeTotpConfig);
+
+        // CRITICAL ZERO TRUST FIX: Always filter by user_id = user.id!
+        // Prevents querying other users' items if database RLS is temporarily disabled
         const { data, error } = await supabase
           .from("vault_items")
           .select("id, encrypted_data, iv, created_at, updated_at")
+          .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
         if (error) return { ok: false, error: error.message };
@@ -112,10 +143,10 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         setKey(candidateKey);
         setItems(decrypted);
 
-        // Check if 2FA TOTP is enabled for this profile
-        if (config && config.enabled) {
+        // Check if 2FA TOTP is enabled for this user
+        if (activeTotpConfig && activeTotpConfig.enabled) {
           setTotpVerified(false);
-          return { ok: true, totpRequired: true, totpSecret: config.secret };
+          return { ok: true, totpRequired: true, totpSecret: activeTotpConfig.secret };
         } else {
           setTotpVerified(true);
           return { ok: true, totpRequired: false };
@@ -137,6 +168,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     setItems([]);
     setTotpVerified(false);
     setCurrentUserId(null);
+    setTotpConfigState(null);
   }, []);
 
   const addItem = useCallback(
@@ -232,7 +264,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   );
 
   const enableTotp2FA = useCallback(
-    (secret: string, accountName: string, issuer: string) => {
+    async (secret: string, accountName: string, issuer: string) => {
       if (!currentUserId) return;
       const config: TotpProfileConfig = {
         enabled: true,
@@ -248,14 +280,44 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       saveTotpConfig(currentUserId, config);
       setTotpConfigState(config);
       setTotpVerified(true);
+
+      // Persist permanently into database profile row
+      try {
+        const supabase = createClient();
+        await supabase
+          .from("profiles")
+          .update({
+            totp_enabled: true,
+            totp_secret: secret,
+            totp_account: accountName,
+            totp_issuer: issuer,
+          })
+          .eq("id", currentUserId);
+      } catch (err) {
+        console.error("Failed to persist TOTP to profile in database:", err);
+      }
     },
     [currentUserId],
   );
 
-  const disableTotp2FA = useCallback(() => {
+  const disableTotp2FA = useCallback(async () => {
     if (!currentUserId) return;
     disableTotpConfig(currentUserId);
     setTotpConfigState(null);
+
+    // Persist permanently into database profile row
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("profiles")
+        .update({
+          totp_enabled: false,
+          totp_secret: null,
+        })
+        .eq("id", currentUserId);
+    } catch (err) {
+      console.error("Failed to disable TOTP in database:", err);
+    }
   }, [currentUserId]);
 
   const isMasterUnlocked = key !== null;

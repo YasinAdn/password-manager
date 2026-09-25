@@ -1,9 +1,9 @@
 /**
  * mock-supabase.ts — Standalone Offline Mock Supabase Client
  * 
- * Enables testing the full password manager (Auth, Master Password, TOTP 2FA,
- * Vault Items CRUD) in a 100% offline browser sandbox without needing any
- * Supabase backend or API keys.
+ * Provides full multi-user authentication, immutable per-user Argon2id salts,
+ * persistent TOTP 2FA configuration in profiles, and isolated vault items CRUD.
+ * Used for offline development and sandbox testing without external dependencies.
  */
 
 import { generateSaltBase64 } from "@/lib/crypto";
@@ -13,9 +13,21 @@ export interface MockUser {
   email: string;
 }
 
+export interface MockUserRecord {
+  id: string;
+  email: string;
+  password: string;
+}
+
 export interface MockProfileRow {
   id: string;
   kdf_salt: string;
+  totp_enabled?: boolean;
+  totp_secret?: string | null;
+  totp_account?: string | null;
+  totp_issuer?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface MockVaultItemRow {
@@ -31,7 +43,7 @@ const STORAGE_KEY = "mynexvault_sandbox_mock_db_v1";
 
 interface SandboxState {
   currentUser: MockUser | null;
-  users: Record<string, { email: string; password: string }>; // email -> info
+  users: Record<string, MockUserRecord>; // email -> record
   profiles: Record<string, MockProfileRow>; // userId -> profile
   vaultItems: MockVaultItemRow[];
 }
@@ -44,7 +56,27 @@ function getInitialState(): SandboxState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed: SandboxState = JSON.parse(raw);
+      // Migrate older state formats to ensure every user has a stable id and matching profile
+      if (parsed.users) {
+        for (const [emailKey, u] of Object.entries(parsed.users as Record<string, any>)) {
+          if (!u.id) {
+            // Find existing profile or use deterministic ID
+            const existingId = Object.keys(parsed.profiles || {}).find(
+              (pid) => pid === `user-${emailKey}` || pid.includes(emailKey)
+            );
+            u.id = existingId || `user-${emailKey.replace(/[^a-zA-Z0-9]/g, "-")}`;
+          }
+          if (!parsed.profiles[u.id]) {
+            parsed.profiles[u.id] = {
+              id: u.id,
+              kdf_salt: generateSaltBase64(),
+              totp_enabled: false,
+            };
+          }
+        }
+      }
+      return parsed;
     }
   } catch (err) {
     console.error("Failed to parse sandbox state:", err);
@@ -58,6 +90,7 @@ function getInitialState(): SandboxState {
     currentUser: null,
     users: {
       "demo@mynexvault.app": {
+        id: demoUserId,
         email: "demo@mynexvault.app",
         password: "password123",
       },
@@ -66,6 +99,7 @@ function getInitialState(): SandboxState {
       [demoUserId]: {
         id: demoUserId,
         kdf_salt: demoSalt,
+        totp_enabled: false,
       },
     },
     vaultItems: [],
@@ -110,7 +144,8 @@ export class MockSupabaseClient {
       password: string;
     }) => {
       this.state = getInitialState();
-      const userRecord = this.state.users[email.toLowerCase()];
+      const cleanEmail = email.trim().toLowerCase();
+      const userRecord = this.state.users[cleanEmail];
 
       if (!userRecord || userRecord.password !== password) {
         return {
@@ -119,18 +154,15 @@ export class MockSupabaseClient {
         };
       }
 
-      // Find or create user ID
-      let userId = Object.keys(this.state.profiles).find(
-        (id) => this.state.profiles[id].id === `user-${email.toLowerCase()}`
-      );
-      if (!userId) {
-        userId = email === "demo@mynexvault.app" ? "demo-user-123" : `user-${Date.now()}`;
-        if (!this.state.profiles[userId]) {
-          this.state.profiles[userId] = {
-            id: userId,
-            kdf_salt: generateSaltBase64(),
-          };
-        }
+      const userId = userRecord.id;
+
+      // Ensure profile exists with an immutable salt. NEVER generate a new salt on an existing profile!
+      if (!this.state.profiles[userId]) {
+        this.state.profiles[userId] = {
+          id: userId,
+          kdf_salt: generateSaltBase64(),
+          totp_enabled: false,
+        };
       }
 
       const user: MockUser = { id: userId, email: userRecord.email };
@@ -138,7 +170,7 @@ export class MockSupabaseClient {
       saveState(this.state);
 
       return {
-        data: { user, session: { access_token: "mock-token" } },
+        data: { user, session: { access_token: `mock-token-${userId}` } },
         error: null,
       };
     },
@@ -151,7 +183,7 @@ export class MockSupabaseClient {
       password: string;
     }) => {
       this.state = getInitialState();
-      const cleanEmail = email.toLowerCase();
+      const cleanEmail = email.trim().toLowerCase();
 
       if (this.state.users[cleanEmail]) {
         return {
@@ -160,20 +192,24 @@ export class MockSupabaseClient {
         };
       }
 
-      const userId = `user-${Date.now()}`;
+      // Generate a stable unique user ID
+      const userId = `user-${cleanEmail.replace(/[^a-zA-Z0-9]/g, "-")}-${Date.now().toString(36)}`;
       const user: MockUser = { id: userId, email: cleanEmail };
 
-      this.state.users[cleanEmail] = { email: cleanEmail, password };
+      this.state.users[cleanEmail] = { id: userId, email: cleanEmail, password };
       this.state.profiles[userId] = {
         id: userId,
         kdf_salt: generateSaltBase64(),
+        totp_enabled: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
       this.state.currentUser = user;
 
       saveState(this.state);
 
       return {
-        data: { user, session: { access_token: "mock-token" } },
+        data: { user, session: { access_token: `mock-token-${userId}` } },
         error: null,
       };
     },
@@ -201,6 +237,28 @@ export class MockSupabaseClient {
 
       return { data: { user: this.state.currentUser }, error: null };
     },
+
+    resetPasswordForEmail: async (email: string) => {
+      this.state = getInitialState();
+      const cleanEmail = email.trim().toLowerCase();
+      if (!this.state.users[cleanEmail]) {
+        return { error: { message: "User not found." } };
+      }
+      return { error: null };
+    },
+
+    verifyOtp: async ({ email }: { email: string; token: string; type: string }) => {
+      this.state = getInitialState();
+      const cleanEmail = email.trim().toLowerCase();
+      const userRecord = this.state.users[cleanEmail];
+      if (!userRecord) {
+        return { data: { user: null, session: null }, error: { message: "Invalid code or user." } };
+      }
+      const user: MockUser = { id: userRecord.id, email: userRecord.email };
+      this.state.currentUser = user;
+      saveState(this.state);
+      return { data: { user, session: { access_token: `mock-token-${user.id}` } }, error: null };
+    },
   };
 
   // ── Database API (from) ─────────────────────────────────────────────────────
@@ -218,16 +276,41 @@ export class MockSupabaseClient {
               if (!profile) {
                 return { data: null, error: { message: "Profile not found." } };
               }
-              return { data: profile, error: null };
+              return { data: { ...profile }, error: null };
             },
             maybeSingle: async () => {
               const profile = self.state.profiles[val];
-              return { data: profile ?? null, error: null };
+              return { data: profile ? { ...profile } : null, error: null };
             },
           }),
         }),
-        insert: async (row: { id: string; kdf_salt: string }) => {
-          self.state.profiles[row.id] = { id: row.id, kdf_salt: row.kdf_salt };
+        insert: async (row: MockProfileRow) => {
+          self.state.profiles[row.id] = {
+            ...(self.state.profiles[row.id] || {}),
+            ...row,
+          };
+          saveState(self.state);
+          return { error: null };
+        },
+        update: (updates: Partial<MockProfileRow>) => ({
+          eq: async (col: string, val: string) => {
+            if (self.state.profiles[val]) {
+              self.state.profiles[val] = {
+                ...self.state.profiles[val],
+                ...updates,
+                updated_at: new Date().toISOString(),
+              };
+              saveState(self.state);
+            }
+            return { data: self.state.profiles[val], error: null };
+          },
+        }),
+        upsert: async (row: Partial<MockProfileRow> & { id: string }) => {
+          self.state.profiles[row.id] = {
+            ...(self.state.profiles[row.id] || {}),
+            ...row,
+            updated_at: new Date().toISOString(),
+          } as MockProfileRow;
           saveState(self.state);
           return { error: null };
         },
@@ -246,8 +329,16 @@ export class MockSupabaseClient {
                 ? a.created_at.localeCompare(b.created_at)
                 : b.created_at.localeCompare(a.created_at)
             );
-            return Promise.resolve({ data: userItems, error: null });
+            return Promise.resolve({ data: [...userItems], error: null });
           },
+          eq: (col: string, val: string) => ({
+            order: (col2: string, { ascending }: { ascending: boolean }) => {
+              const userItems = self.state.vaultItems.filter(
+                (it) => it.user_id === val
+              );
+              return Promise.resolve({ data: [...userItems], error: null });
+            },
+          }),
         }),
 
         insert: (row: { user_id: string; encrypted_data: string; iv: string }) => ({
@@ -289,8 +380,12 @@ export class MockSupabaseClient {
         }),
 
         delete: () => ({
-          eq: async (col: string, id: string) => {
-            self.state.vaultItems = self.state.vaultItems.filter((it) => it.id !== id);
+          eq: async (col: string, val: string) => {
+            if (col === "user_id") {
+              self.state.vaultItems = self.state.vaultItems.filter((it) => it.user_id !== val);
+            } else {
+              self.state.vaultItems = self.state.vaultItems.filter((it) => it.id !== val);
+            }
             saveState(self.state);
             return { error: null };
           },

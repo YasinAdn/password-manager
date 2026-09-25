@@ -7,7 +7,6 @@ import { deriveKey, generateSaltBase64 } from "@/lib/crypto";
 import { useVault } from "@/lib/vault-context";
 import { isValidEmail } from "@/lib/validation";
 import AuthCard from "@/components/AuthCard";
-import { SandboxBanner } from "@/components/SandboxBanner";
 import {
   errorBoxClass,
   inputClass,
@@ -15,6 +14,7 @@ import {
   linkClass,
   primaryButtonClass,
 } from "@/lib/ui";
+import { CheckCircle2, Mail } from "lucide-react";
 
 const MIN_PASSWORD_LENGTH = 10;
 
@@ -27,12 +27,14 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (!isValidEmail(email)) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!isValidEmail(cleanEmail)) {
       setError("Enter a valid email address.");
       return;
     }
@@ -49,7 +51,7 @@ export default function SignupPage() {
     try {
       const supabase = createClient();
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password,
       });
 
@@ -59,15 +61,28 @@ export default function SignupPage() {
       }
 
       const kdfSalt = generateSaltBase64();
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert({ id: data.user.id, kdf_salt: kdfSalt });
+      
+      // Upsert profile salt
+      try {
+        await supabase
+          .from("profiles")
+          .upsert({
+            id: data.user.id,
+            kdf_salt: kdfSalt,
+            totp_enabled: false,
+          });
+      } catch (err) {
+        // In case database trigger already initialized salt
+        console.warn("Profile init notice:", err);
+      }
 
-      if (profileError) {
-        setError(profileError.message);
+      // Check if Supabase requires email confirmation (no active session yet)
+      if (!data.session) {
+        setNeedsConfirmation(true);
         return;
       }
 
+      // If user session is active immediately:
       const key = await deriveKey(password, kdfSalt);
       await unlockMaster(key);
       router.push("/vault");
@@ -76,10 +91,36 @@ export default function SignupPage() {
     }
   }
 
-  return (
-    <div className="flex-1 flex flex-col justify-between">
-      <SandboxBanner />
+  if (needsConfirmation) {
+    return (
+      <div className="flex-1 flex flex-col justify-center">
+        <div className="flex-1 flex items-center justify-center p-4 py-12">
+          <AuthCard
+            title="Check your email"
+            subtitle={`We sent a confirmation link or code to ${email}.`}
+          >
+            <div className="space-y-5 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent border border-accent/20">
+                <Mail className="h-7 w-7" />
+              </div>
+              <p className="text-xs text-muted leading-relaxed">
+                Please verify your email address to activate your account. Once verified, log in with your master password to unlock your vault.
+              </p>
+              <a
+                href="/login"
+                className={`${primaryButtonClass} block text-center`}
+              >
+                Go to Log in
+              </a>
+            </div>
+          </AuthCard>
+        </div>
+      </div>
+    );
+  }
 
+  return (
+    <div className="flex-1 flex flex-col justify-center">
       <div className="flex-1 flex items-center justify-center p-4 py-12">
         <AuthCard
           title="Create a vault"

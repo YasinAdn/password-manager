@@ -13,11 +13,11 @@ import {
   primaryButtonClass,
   secondaryButtonClass,
 } from "@/lib/ui";
-import { Lock, ShieldCheck } from "lucide-react";
+import { Lock } from "lucide-react";
 
 export default function LockScreen() {
   const router = useRouter();
-  const { unlockMaster, verifyTotp, lock } = useVault();
+  const { unlockMaster, verifyTotp, lock, isMasterUnlocked, totpConfig } = useVault();
 
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +26,12 @@ export default function LockScreen() {
   const [userId, setUserId] = useState<string | null>(null);
 
   // 2-Step Authentication State
-  const [totpStepRequired, setTotpStepRequired] = useState(false);
-  const [totpSecret, setTotpSecret] = useState<string | null>(null);
+  const [totpStepRequired, setTotpStepRequired] = useState(
+    Boolean(isMasterUnlocked && totpConfig?.enabled && totpConfig?.secret)
+  );
+  const [totpSecret, setTotpSecret] = useState<string | null>(
+    isMasterUnlocked && totpConfig?.enabled ? totpConfig.secret : null
+  );
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -38,6 +42,13 @@ export default function LockScreen() {
     };
     fetchUser();
   }, []);
+
+  useEffect(() => {
+    if (isMasterUnlocked && totpConfig?.enabled && totpConfig?.secret) {
+      setTotpStepRequired(true);
+      setTotpSecret(totpConfig.secret);
+    }
+  }, [isMasterUnlocked, totpConfig]);
 
   async function handleMasterUnlock(e: FormEvent) {
     e.preventDefault();
@@ -75,8 +86,6 @@ export default function LockScreen() {
       if (result.totpRequired && result.totpSecret) {
         setTotpStepRequired(true);
         setTotpSecret(result.totpSecret);
-      } else {
-        // Vault unlocked directly (no TOTP configured)
       }
     } finally {
       setSubmitting(false);
@@ -124,11 +133,13 @@ export default function LockScreen() {
         </div>
 
         {email ? (
-          <p className="text-xs text-muted">Signed in as <strong className="text-foreground">{email}</strong></p>
+          <p className="text-xs text-muted">
+            Signed in as <strong className="text-foreground">{email}</strong>
+          </p>
         ) : null}
 
         <p className="text-xs text-muted leading-relaxed">
-          Enter your master password to derive your encryption key and initiate 2-step verification.
+          Enter your master password to derive your encryption key and access your vault.
         </p>
 
         <form onSubmit={handleMasterUnlock} className="space-y-4 pt-1">
