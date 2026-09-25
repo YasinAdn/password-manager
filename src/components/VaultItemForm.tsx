@@ -2,11 +2,14 @@
 
 import { useState, type FormEvent } from "react";
 import type { VaultItemData } from "@/lib/crypto";
+import { sanitizeSafeUrl } from "@/lib/validation";
 import {
   inputClass,
   labelClass,
   primaryButtonClass,
   secondaryButtonClass,
+  noAutofillFormProps,
+  noAutofillPasswordProps,
 } from "@/lib/ui";
 
 export default function VaultItemForm({
@@ -30,11 +33,23 @@ export default function VaultItemForm({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const trimmedUrl = url.trim();
+    let safeUrlToSave: string | undefined = undefined;
+    if (trimmedUrl) {
+      const safe = sanitizeSafeUrl(trimmedUrl);
+      if (!safe) {
+        setError("Invalid URL scheme. Only http:// and https:// links are permitted.");
+        return;
+      }
+      safeUrlToSave = safe;
+    }
+
     setSaving(true);
     try {
       await onSave({
         title: title.trim(),
-        url: url.trim() || undefined,
+        url: safeUrlToSave,
         email: email.trim() || undefined,
         username: username.trim() || undefined,
         password,
@@ -47,7 +62,7 @@ export default function VaultItemForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" {...noAutofillFormProps}>
       {error ? <p className="text-sm text-danger">{error}</p> : null}
       <div>
         <label className={labelClass} htmlFor="item-title">
@@ -58,6 +73,10 @@ export default function VaultItemForm({
           className={inputClass}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          autoComplete="off"
+          data-1p-ignore="true"
+          data-lpignore="true"
+          data-bwignore="true"
           required
         />
       </div>
@@ -71,6 +90,10 @@ export default function VaultItemForm({
           placeholder="https://"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
+          autoComplete="off"
+          data-1p-ignore="true"
+          data-lpignore="true"
+          data-bwignore="true"
         />
       </div>
       <div>
@@ -83,6 +106,10 @@ export default function VaultItemForm({
           className={inputClass}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          autoComplete="off"
+          data-1p-ignore="true"
+          data-lpignore="true"
+          data-bwignore="true"
         />
       </div>
       <div>
@@ -94,6 +121,10 @@ export default function VaultItemForm({
           className={inputClass}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
+          autoComplete="off"
+          data-1p-ignore="true"
+          data-lpignore="true"
+          data-bwignore="true"
         />
       </div>
       <div>
@@ -103,10 +134,14 @@ export default function VaultItemForm({
         <div className="flex gap-2">
           <input
             id="item-password"
-            type={showPassword ? "text" : "password"}
+            type="text"
+            style={{
+              WebkitTextSecurity: showPassword ? "none" : "disc",
+            } as React.CSSProperties}
             className={inputClass}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            {...noAutofillPasswordProps}
             required
           />
           <button

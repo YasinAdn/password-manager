@@ -17,3 +17,26 @@ export const linkClass = "text-accent hover:underline";
 
 export const heroActionCardClass =
   "group flex flex-col items-center gap-2 rounded-xl border border-border bg-panel px-6 py-8 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-lg active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50";
+
+// Attributes to prevent Chrome, Edge, Firefox, Safari and password manager extensions
+// (1Password, Bitwarden, LastPass, Dashlane, Proton Pass) from prompting to save passwords or autofilling.
+export const noAutofillFormProps = {
+  autoComplete: "off",
+  "data-1p-ignore": "true",
+  "data-lpignore": "true",
+  "data-bwignore": "true",
+  "data-protonpass-ignore": "true",
+  "data-form-type": "other",
+} as const;
+
+export const noAutofillPasswordProps = {
+  autoComplete: "new-password",
+  autoCorrect: "off",
+  autoCapitalize: "off",
+  spellCheck: false,
+  "data-1p-ignore": "true",
+  "data-lpignore": "true",
+  "data-bwignore": "true",
+  "data-protonpass-ignore": "true",
+  "data-form-type": "other",
+} as const;

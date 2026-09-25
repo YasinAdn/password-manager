@@ -19,39 +19,18 @@ export interface TotpProfileConfig {
 
 const LOCAL_STORAGE_KEY_PREFIX = 'mynexvault_totp_2fa_';
 
-export const DEMO_USER_ID = "demo-user-123";
-export const DEMO_TOTP_SECRET = "JBSW3DPEHPK3PXPJ";
-
 function getStorageKey(userId: string): string {
   return `${LOCAL_STORAGE_KEY_PREFIX}${userId}`;
 }
 
 /**
  * Load TOTP 2FA config for a user from local persistent storage.
- * Pre-enables TOTP for the demo account (demo-user-123) by default.
  */
 export function getTotpConfig(userId: string): TotpProfileConfig | null {
   if (typeof window === 'undefined' || !userId) return null;
   try {
     const raw = localStorage.getItem(getStorageKey(userId));
-    if (!raw) {
-      if (userId === DEMO_USER_ID) {
-        const defaultConfig: TotpProfileConfig = {
-          enabled: true,
-          secret: DEMO_TOTP_SECRET,
-          issuer: "MynexVault",
-          accountName: "demo@mynexvault.app",
-          createdAt: new Date().toISOString(),
-          lastUsedTimestep: null,
-          failedAttempts: 0,
-          failedWindowStart: null,
-          lockedUntil: null,
-        };
-        saveTotpConfig(userId, defaultConfig);
-        return defaultConfig;
-      }
-      return null;
-    }
+    if (!raw) return null;
     return JSON.parse(raw) as TotpProfileConfig;
   } catch (err) {
     console.error('Failed to load TOTP config:', err);

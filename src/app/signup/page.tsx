@@ -13,6 +13,8 @@ import {
   labelClass,
   linkClass,
   primaryButtonClass,
+  noAutofillFormProps,
+  noAutofillPasswordProps,
 } from "@/lib/ui";
 import { CheckCircle2, Mail } from "lucide-react";
 
@@ -126,7 +128,7 @@ export default function SignupPage() {
           title="Create a vault"
           subtitle="Your master password encrypts everything on your device. It cannot be reset if forgotten."
         >
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" {...noAutofillFormProps}>
             {error ? <p className={errorBoxClass}>{error}</p> : null}
             <div>
               <label className={labelClass} htmlFor="email">
@@ -135,7 +137,10 @@ export default function SignupPage() {
               <input
                 id="email"
                 type="email"
-                autoComplete="email"
+                autoComplete="off"
+                data-1p-ignore="true"
+                data-lpignore="true"
+                data-bwignore="true"
                 className={inputClass}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -149,11 +154,11 @@ export default function SignupPage() {
               <input
                 id="password"
                 type="password"
-                autoComplete="new-password"
                 className={inputClass}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 minLength={MIN_PASSWORD_LENGTH}
+                {...noAutofillPasswordProps}
                 required
               />
             </div>
@@ -164,11 +169,11 @@ export default function SignupPage() {
               <input
                 id="confirm-password"
                 type="password"
-                autoComplete="new-password"
                 className={inputClass}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 minLength={MIN_PASSWORD_LENGTH}
+                {...noAutofillPasswordProps}
                 required
               />
             </div>

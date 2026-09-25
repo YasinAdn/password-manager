@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -55,6 +56,8 @@ interface VaultContextValue {
   disableTotp2FA: () => Promise<void>;
 }
 
+const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes auto-lock timeout
+
 const VaultContext = createContext<VaultContextValue | null>(null);
 
 export function VaultProvider({ children }: { children: ReactNode }) {
@@ -66,6 +69,14 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const [totpVerified, setTotpVerified] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [totpConfig, setTotpConfigState] = useState<TotpProfileConfig | null>(null);
+
+  const lock = useCallback(() => {
+    setKey(null);
+    setItems([]);
+    setTotpVerified(false);
+    setCurrentUserId(null);
+    setTotpConfigState(null);
+  }, []);
 
   // Step 1: Master password key derivation & test decryption
   const unlockMaster = useCallback(
@@ -111,8 +122,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         }
         setTotpConfigState(activeTotpConfig);
 
-        // CRITICAL ZERO TRUST FIX: Always filter by user_id = user.id!
-        // Prevents querying other users' items if database RLS is temporarily disabled
+        // CRITICAL ZERO TRUST DEFENSE: Always filter by user_id = user.id!
+        // Guarantees queries can never retrieve or decrypt another user's ciphertext.
         const { data, error } = await supabase
           .from("vault_items")
           .select("id, encrypted_data, iv, created_at, updated_at")
@@ -163,14 +174,6 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     setTotpVerified(true);
   }, []);
 
-  const lock = useCallback(() => {
-    setKey(null);
-    setItems([]);
-    setTotpVerified(false);
-    setCurrentUserId(null);
-    setTotpConfigState(null);
-  }, []);
-
   const addItem = useCallback(
     async (data: VaultItemData) => {
       if (!key) throw new Error("Vault is locked.");
@@ -205,11 +208,17 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     async (id: string, data: VaultItemData) => {
       if (!key) throw new Error("Vault is locked.");
       const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not signed in.");
+
       const { ciphertext, iv } = await encryptItem(key, data);
       const { data: updated, error } = await supabase
         .from("vault_items")
         .update({ encrypted_data: ciphertext, iv })
         .eq("id", id)
+        .eq("user_id", user.id)
         .select("updated_at")
         .single();
       if (error || !updated)
@@ -226,7 +235,17 @@ export function VaultProvider({ children }: { children: ReactNode }) {
 
   const deleteItem = useCallback(async (id: string) => {
     const supabase = createClient();
-    const { error } = await supabase.from("vault_items").delete().eq("id", id);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not signed in.");
+
+    const { error } = await supabase
+      .from("vault_items")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+
     if (error) throw new Error(error.message);
     setItems((prev) => prev.filter((it) => it.id !== id));
   }, []);
@@ -250,12 +269,18 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const reencryptAll = useCallback(
     async (newKey: CryptoKey) => {
       const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not signed in.");
+
       for (const item of items) {
         const { ciphertext, iv } = await encryptItem(newKey, item.data);
         const { error } = await supabase
           .from("vault_items")
           .update({ encrypted_data: ciphertext, iv })
-          .eq("id", item.id);
+          .eq("id", item.id)
+          .eq("user_id", user.id);
         if (error) throw new Error(error.message);
       }
       setKey(newKey);
@@ -323,6 +348,32 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const isMasterUnlocked = key !== null;
   const isTotpRequired = isMasterUnlocked && totpConfig?.enabled === true && !totpVerified;
   const isUnlocked = isMasterUnlocked && (!totpConfig?.enabled || totpVerified);
+
+  // Inactivity Auto-Lock: drops CryptoKey and decrypted items after 15 minutes of inactivity
+  useEffect(() => {
+    if (!isUnlocked) return;
+
+    let timeoutId: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        lock();
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+
+    const events = ["mousedown", "keydown", "scroll", "touchstart", "click"];
+    events.forEach((evt) =>
+      window.addEventListener(evt, resetTimer, { passive: true }),
+    );
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach((evt) => window.removeEventListener(evt, resetTimer));
+    };
+  }, [isUnlocked, lock]);
 
   const value = useMemo<VaultContextValue>(
     () => ({

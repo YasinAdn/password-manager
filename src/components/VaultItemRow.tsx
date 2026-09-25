@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import type { VaultItem } from "@/lib/vault-context";
+import { sanitizeSafeUrl } from "@/lib/validation";
 import CopyButton from "./CopyButton";
 
 export default function VaultItemRow({
@@ -18,6 +19,8 @@ export default function VaultItemRow({
   const [open, setOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const safeUrl = sanitizeSafeUrl(item.data.url);
 
   async function handleDelete() {
     if (!confirm(`Delete "${item.data.title}"? This cannot be undone.`)) return;
@@ -55,14 +58,18 @@ export default function VaultItemRow({
         <div className="animate-fade-in-up space-y-3 border-t border-border px-4 py-4">
           {item.data.url ? (
             <Field label="URL" value={item.data.url}>
-              <a
-                href={item.data.url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-accent hover:underline"
-              >
-                {item.data.url}
-              </a>
+              {safeUrl ? (
+                <a
+                  href={safeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-accent hover:underline"
+                >
+                  {item.data.url}
+                </a>
+              ) : (
+                <span className="text-sm text-foreground">{item.data.url}</span>
+              )}
             </Field>
           ) : null}
           {item.data.email ? <Field label="Email" value={item.data.email} /> : null}

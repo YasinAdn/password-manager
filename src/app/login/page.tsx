@@ -14,6 +14,8 @@ import {
   labelClass,
   linkClass,
   primaryButtonClass,
+  noAutofillFormProps,
+  noAutofillPasswordProps,
 } from "@/lib/ui";
 
 export default function LoginPage() {
@@ -123,7 +125,7 @@ export default function LoginPage() {
     <div className="flex-1 flex flex-col justify-center">
       <div className="flex-1 flex items-center justify-center p-4 py-12">
         <AuthCard title="Unlock your vault" subtitle="Log in with your master password.">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" {...noAutofillFormProps}>
             {error ? <p className={errorBoxClass}>{error}</p> : null}
             <div>
               <label className={labelClass} htmlFor="email">
@@ -132,7 +134,10 @@ export default function LoginPage() {
               <input
                 id="email"
                 type="email"
-                autoComplete="email"
+                autoComplete="off"
+                data-1p-ignore="true"
+                data-lpignore="true"
+                data-bwignore="true"
                 className={inputClass}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -146,10 +151,10 @@ export default function LoginPage() {
               <input
                 id="password"
                 type="password"
-                autoComplete="current-password"
                 className={inputClass}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                {...noAutofillPasswordProps}
                 required
               />
             </div>

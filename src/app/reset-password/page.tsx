@@ -11,6 +11,8 @@ import {
   inputClass,
   labelClass,
   primaryButtonClass,
+  noAutofillFormProps,
+  noAutofillPasswordProps,
 } from "@/lib/ui";
 
 type Step = "request" | "confirm";
@@ -112,7 +114,7 @@ export default function ResetPasswordPage() {
         title="Set a new master password"
         subtitle={`Enter the code sent to ${email}.`}
       >
-        <form onSubmit={handleConfirm} className="space-y-4">
+        <form onSubmit={handleConfirm} className="space-y-4" {...noAutofillFormProps}>
           {error ? <p className={errorBoxClass}>{error}</p> : null}
           <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
             Resetting your master password permanently erases your existing
@@ -141,11 +143,11 @@ export default function ResetPasswordPage() {
             <input
               id="new-password"
               type="password"
-              autoComplete="off"
               className={inputClass}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               minLength={MIN_PASSWORD_LENGTH}
+              {...noAutofillPasswordProps}
               required
             />
           </div>
@@ -156,11 +158,11 @@ export default function ResetPasswordPage() {
             <input
               id="confirm-password"
               type="password"
-              autoComplete="off"
               className={inputClass}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               minLength={MIN_PASSWORD_LENGTH}
+              {...noAutofillPasswordProps}
               required
             />
           </div>
@@ -181,7 +183,7 @@ export default function ResetPasswordPage() {
       title="Reset master password"
       subtitle="We'll email you a verification code."
     >
-      <form onSubmit={handleRequest} className="space-y-4">
+      <form onSubmit={handleRequest} className="space-y-4" {...noAutofillFormProps}>
         {error ? <p className={errorBoxClass}>{error}</p> : null}
         <div>
           <label className={labelClass} htmlFor="email">
@@ -190,7 +192,10 @@ export default function ResetPasswordPage() {
           <input
             id="email"
             type="email"
-            autoComplete="email"
+            autoComplete="off"
+            data-1p-ignore="true"
+            data-lpignore="true"
+            data-bwignore="true"
             className={inputClass}
             value={email}
             onChange={(e) => setEmail(e.target.value)}

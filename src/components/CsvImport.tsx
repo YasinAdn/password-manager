@@ -4,6 +4,7 @@ import { useRef, useState, type ChangeEvent } from "react";
 import Papa from "papaparse";
 import type { VaultItemData } from "@/lib/crypto";
 import { heroActionCardClass, secondaryButtonClass } from "@/lib/ui";
+import { sanitizeSafeUrl } from "@/lib/validation";
 
 // Common header names across password-manager CSV exports (Chrome, Bitwarden,
 // LastPass, generic). Matching is case-insensitive against these aliases.
@@ -39,9 +40,12 @@ function rowToItem(
   const password = get("password");
   if (!title && !password) return null; // blank row
 
+  const rawUrl = get("url");
+  const safeUrl = rawUrl ? sanitizeSafeUrl(rawUrl) || undefined : undefined;
+
   return {
     title: title || "Untitled",
-    url: get("url") || undefined,
+    url: safeUrl,
     email: get("email") || undefined,
     username: get("username") || undefined,
     password,

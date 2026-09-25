@@ -1,18 +1,16 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import QRCode from "qrcode";
-import { verifyTotpCode, getTotpCode, buildOtpauthUri, formatSecretDisplay } from "@/lib/totp";
+import { verifyTotpCode } from "@/lib/totp";
 import {
   checkTotpRateLimit,
   recordFailedTotpAttempt,
   resetTotpRateLimit,
   isReplayedTimestep,
   consumeTimestep,
-  RateLimitCheck,
+  type RateLimitCheck,
 } from "@/lib/totp-storage";
 import {
-  ShieldCheck,
   CheckCircle2,
   XCircle,
   Ban,
@@ -21,11 +19,6 @@ import {
   ArrowRight,
   Repeat,
   Lock,
-  Zap,
-  QrCode,
-  Smartphone,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import {
   inputClass,
@@ -51,8 +44,6 @@ export const Totp2faChallenge: React.FC<Totp2faChallengeProps> = ({
   const [tokenInput, setTokenInput] = useState("");
   const [status, setStatus] = useState<VerificationStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [showQrHelper, setShowQrHelper] = useState(false);
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
 
   const [rateLimit, setRateLimit] = useState<RateLimitCheck>({
     isLocked: false,
@@ -69,7 +60,9 @@ export const Totp2faChallenge: React.FC<Totp2faChallengeProps> = ({
       if (check.isLocked) {
         setLockoutCountdown(Math.ceil(check.lockoutRemainingMs / 1000));
         setStatus("locked");
-        setErrorMessage(`Too many attempts. Account locked for ${Math.ceil(check.lockoutRemainingMs / 1000)}s.`);
+        setErrorMessage(
+          `Too many attempts. Account locked for ${Math.ceil(check.lockoutRemainingMs / 1000)}s.`,
+        );
       } else if (status === "locked") {
         setStatus("idle");
         setErrorMessage("");
@@ -80,19 +73,6 @@ export const Totp2faChallenge: React.FC<Totp2faChallengeProps> = ({
     const interval = setInterval(refreshRateLimit, 1000);
     return () => clearInterval(interval);
   }, [userId, status]);
-
-  // Generate QR code for phone scanning on challenge screen if requested
-  useEffect(() => {
-    if (!secret || !showQrHelper) return;
-    const uri = buildOtpauthUri("demo@mynexvault.app", "MynexVault", secret);
-    QRCode.toDataURL(uri, {
-      width: 200,
-      margin: 1,
-      color: { dark: "#0f172a", light: "#ffffff" },
-    })
-      .then(setQrCodeDataUrl)
-      .catch(console.error);
-  }, [secret, showQrHelper]);
 
   const handleVerify = useCallback(
     (codeToVerify?: string) => {
@@ -107,7 +87,9 @@ export const Totp2faChallenge: React.FC<Totp2faChallengeProps> = ({
       const currentLimit = checkTotpRateLimit(userId);
       if (currentLimit.isLocked) {
         setStatus("locked");
-        setErrorMessage(`Too many attempts! Locked for ${Math.ceil(currentLimit.lockoutRemainingMs / 1000)}s.`);
+        setErrorMessage(
+          `Too many attempts! Locked for ${Math.ceil(currentLimit.lockoutRemainingMs / 1000)}s.`,
+        );
         setRateLimit(currentLimit);
         return;
       }
@@ -115,7 +97,9 @@ export const Totp2faChallenge: React.FC<Totp2faChallengeProps> = ({
       // Check Replay Protection
       if (isReplayedTimestep(userId, 30)) {
         setStatus("replay");
-        setErrorMessage("Code already used! This time-step was consumed. Wait 30 seconds for Google Authenticator to refresh.");
+        setErrorMessage(
+          "Code already used! This time-step was consumed. Wait 30 seconds for Google Authenticator to refresh.",
+        );
         return;
       }
 
@@ -129,21 +113,25 @@ export const Totp2faChallenge: React.FC<Totp2faChallengeProps> = ({
         setErrorMessage("Match ✅ — 2FA Authentication successful!");
         setTimeout(() => {
           onSuccess();
-        }, 500);
+        }, 400);
       } else {
         const updated = recordFailedTotpAttempt(userId);
         setRateLimit(updated);
 
         if (updated.isLocked) {
           setStatus("locked");
-          setErrorMessage(`Too many failed attempts! Account locked for 5 minutes. (${updated.totalFailedAttempts}/5 failed)`);
+          setErrorMessage(
+            `Too many failed attempts! Account locked for 5 minutes. (${updated.totalFailedAttempts}/5 failed)`,
+          );
         } else {
           setStatus("failed");
-          setErrorMessage(`No match ❌ — Code incorrect or expired. (${updated.totalFailedAttempts}/5 attempts used)`);
+          setErrorMessage(
+            `No match ❌ — Code incorrect or expired. (${updated.totalFailedAttempts}/5 attempts used)`,
+          );
         }
       }
     },
-    [tokenInput, userId, secret, onSuccess]
+    [tokenInput, userId, secret, onSuccess],
   );
 
   useEffect(() => {
@@ -152,14 +140,6 @@ export const Totp2faChallenge: React.FC<Totp2faChallengeProps> = ({
       handleVerify(clean);
     }
   }, [tokenInput, handleVerify]);
-
-  const handleAutoFillLiveCode = () => {
-    const liveCode = getTotpCode(secret);
-    if (liveCode && liveCode !== "------") {
-      setTokenInput(liveCode);
-      handleVerify(liveCode);
-    }
-  };
 
   const isLocked = rateLimit.isLocked;
 
@@ -187,13 +167,19 @@ export const Totp2faChallenge: React.FC<Totp2faChallengeProps> = ({
 
         {/* Rate Limit Status Badge */}
         {rateLimit.totalFailedAttempts > 0 && (
-          <div className={`p-2.5 rounded-lg border text-xs flex items-center justify-between font-medium ${
-            isLocked
-              ? "bg-destructive/20 border-destructive/50 text-destructive"
-              : "bg-background border-border text-muted"
-          }`}>
+          <div
+            className={`p-2.5 rounded-lg border text-xs flex items-center justify-between font-medium ${
+              isLocked
+                ? "bg-destructive/20 border-destructive/50 text-destructive"
+                : "bg-background border-border text-muted"
+            }`}
+          >
             <span className="flex items-center gap-1.5">
-              {isLocked ? <Ban className="w-4 h-4 text-destructive animate-pulse" /> : <Clock className="w-4 h-4 text-accent" />}
+              {isLocked ? (
+                <Ban className="w-4 h-4 text-destructive animate-pulse" />
+              ) : (
+                <Clock className="w-4 h-4 text-accent" />
+              )}
               {isLocked
                 ? `Locked: ${lockoutCountdown}s remaining`
                 : `Attempts: ${rateLimit.totalFailedAttempts}/5 failed`}
@@ -217,7 +203,9 @@ export const Totp2faChallenge: React.FC<Totp2faChallengeProps> = ({
               }}
               placeholder={isLocked ? "Locked..." : "123 456"}
               className={`${inputClass} text-center font-mono text-2xl font-bold tracking-widest text-accent ${
-                isLocked ? "opacity-50 cursor-not-allowed border-destructive" : ""
+                isLocked
+                  ? "opacity-50 cursor-not-allowed border-destructive"
+                  : ""
               }`}
             />
             {tokenInput && !isLocked && (
@@ -234,28 +222,15 @@ export const Totp2faChallenge: React.FC<Totp2faChallengeProps> = ({
             )}
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleVerify()}
-              disabled={isLocked || tokenInput.replace(/\s/g, "").length !== 6}
-              type="button"
-              className={`${primaryButtonClass} flex-1 flex items-center justify-center gap-2`}
-            >
-              <span>Verify Code</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={handleAutoFillLiveCode}
-              disabled={isLocked}
-              type="button"
-              className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-accent/20 hover:bg-accent/30 text-accent font-semibold text-xs border border-accent/40 transition-colors shrink-0"
-              title="Auto-fill current live code for fast testing"
-            >
-              <Zap className="w-3.5 h-3.5" />
-              <span>Fill Code</span>
-            </button>
-          </div>
+          <button
+            onClick={() => handleVerify()}
+            disabled={isLocked || tokenInput.replace(/\s/g, "").length !== 6}
+            type="button"
+            className={`${primaryButtonClass} w-full flex items-center justify-center gap-2`}
+          >
+            <span>Verify Code</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Feedback Banner */}
@@ -290,38 +265,6 @@ export const Totp2faChallenge: React.FC<Totp2faChallengeProps> = ({
             </div>
           </div>
         )}
-
-        {/* Collapsible Authenticator QR Code Helper */}
-        <div className="border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setShowQrHelper(!showQrHelper)}
-            className="w-full flex items-center justify-between text-xs text-muted hover:text-foreground py-1"
-          >
-            <span className="flex items-center gap-1.5 font-medium">
-              <QrCode className="w-3.5 h-3.5 text-accent" />
-              <span>Scan QR Code with Google Authenticator</span>
-            </span>
-            {showQrHelper ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-
-          {showQrHelper && (
-            <div className="mt-3 p-4 bg-background rounded-xl border border-border flex flex-col items-center space-y-3">
-              {qrCodeDataUrl && (
-                <div className="p-2 bg-white rounded-lg shadow">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrCodeDataUrl} alt="Google Authenticator QR" className="w-36 h-36" />
-                </div>
-              )}
-              <div className="text-center space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted block">Base32 Secret</span>
-                <span className="font-mono text-xs font-bold text-accent select-all block">
-                  {formatSecretDisplay(secret)}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
 
         <button
           type="button"

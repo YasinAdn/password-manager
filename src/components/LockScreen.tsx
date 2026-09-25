@@ -12,6 +12,8 @@ import {
   labelClass,
   primaryButtonClass,
   secondaryButtonClass,
+  noAutofillFormProps,
+  noAutofillPasswordProps,
 } from "@/lib/ui";
 import { Lock } from "lucide-react";
 
@@ -142,7 +144,7 @@ export default function LockScreen() {
           Enter your master password to derive your encryption key and access your vault.
         </p>
 
-        <form onSubmit={handleMasterUnlock} className="space-y-4 pt-1">
+        <form onSubmit={handleMasterUnlock} className="space-y-4 pt-1" {...noAutofillFormProps}>
           {error ? <p className={errorBoxClass}>{error}</p> : null}
           <div>
             <label className={labelClass} htmlFor="unlock-password">
@@ -151,11 +153,11 @@ export default function LockScreen() {
             <input
               id="unlock-password"
               type="password"
-              autoComplete="off"
               autoFocus
               className={inputClass}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              {...noAutofillPasswordProps}
               required
             />
           </div>

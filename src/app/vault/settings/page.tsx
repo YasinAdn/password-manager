@@ -15,6 +15,8 @@ import {
   linkClass,
   primaryButtonClass,
   secondaryButtonClass,
+  noAutofillFormProps,
+  noAutofillPasswordProps,
 } from "@/lib/ui";
 
 const MIN_PASSWORD_LENGTH = 10;
@@ -210,7 +212,7 @@ export default function VaultSettingsPage() {
             Your saved passwords are re-encrypted with the new one — nothing
             is lost.
           </p>
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4" {...noAutofillFormProps}>
             {error ? <p className={errorBoxClass}>{error}</p> : null}
             {success ? (
               <p className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-accent">
@@ -224,10 +226,10 @@ export default function VaultSettingsPage() {
               <input
                 id="current-password"
                 type="password"
-                autoComplete="off"
                 className={inputClass}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
+                {...noAutofillPasswordProps}
                 required
               />
             </div>
@@ -238,11 +240,11 @@ export default function VaultSettingsPage() {
               <input
                 id="new-password"
                 type="password"
-                autoComplete="off"
                 className={inputClass}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 minLength={MIN_PASSWORD_LENGTH}
+                {...noAutofillPasswordProps}
                 required
               />
             </div>
@@ -253,11 +255,11 @@ export default function VaultSettingsPage() {
               <input
                 id="confirm-new-password"
                 type="password"
-                autoComplete="off"
                 className={inputClass}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 minLength={MIN_PASSWORD_LENGTH}
+                {...noAutofillPasswordProps}
                 required
               />
             </div>
